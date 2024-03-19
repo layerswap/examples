@@ -1,0 +1,32 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background-color: rgb(15 23 42);
+}
+
+code {
+  font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
+    monospace;
+}
+
+.top-backdrop {
+  width: 1325px;
+  height: 1164px;
+  position: absolute;
+  filter: blur(133px);
+  transform: translate(-50%, -50%) translate3d(0, 0, 0);
+  left: 50%;
+  top: -5%;
+  border-radius: 50%;
+  z-index: -1;
+  opacity: 80%;
+  background: theme('colors.primary.background');
+}
