@@ -6,6 +6,7 @@ import {
   encodeFunctionData,
   erc20Abi,
   formatUnits,
+  parseUnits,
   toHex,
 } from 'viem';
 import type {ConfiguredWalletEnv} from './env.js';
@@ -180,10 +181,7 @@ export async function readAllowanceSnapshot(
     );
   }
 
-  const requiredAmount = getRequiredAmountInBaseUnits(
-    preparedSwap,
-    depositAction,
-  );
+  const requiredAmount = getRequestedTokenAmountInBaseUnits(preparedSwap);
   const spender = depositAction.to_address as Address;
   const [allowance, balance] = await Promise.all([
     publicClient.readContract({
@@ -244,7 +242,7 @@ export function buildSubmissionCalls(
   calls.push({
     to: depositAction.to_address as Address,
     data: depositAction.call_data,
-    value: 0n,
+    value: getNativeValueInBaseUnits(depositAction),
   });
 
   return {
@@ -441,31 +439,19 @@ function getDepositAction(
   );
 }
 
-function getRequiredAmountInBaseUnits(
+function getRequestedTokenAmountInBaseUnits(
   preparedSwap: LayerswapPreparedSwapResponse,
+): bigint {
+  return parseUnits(
+    String(preparedSwap.swap.requested_amount),
+    preparedSwap.swap.source_token.decimals,
+  );
+}
+
+function getNativeValueInBaseUnits(
   depositAction: LayerswapTransferDepositAction,
 ): bigint {
-  if (depositAction.amount_in_base_units) {
-    const parsedAmount = BigInt(depositAction.amount_in_base_units);
-
-    if (parsedAmount > 0n) {
-      return parsedAmount;
-    }
-  }
-
-  const encodedAmount = depositAction.encoded_args?.at(-1);
-
-  if (encodedAmount) {
-    const parsedAmount = BigInt(encodedAmount);
-
-    if (parsedAmount > 0n) {
-      return parsedAmount;
-    }
-  }
-
-  throw new Error(
-    `Swap ${preparedSwap.swap.id} is missing a usable token amount on its deposit action.`,
-  );
+  return BigInt(depositAction.amount_in_base_units || '0');
 }
 
 async function waitForPrivyTransaction(

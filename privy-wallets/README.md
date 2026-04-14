@@ -7,6 +7,11 @@ The two important parts of this flow are:
 - Create the swap with `use_depository: true`.
 - If the wallet does not already have enough allowance, batch `approve(exactAmount)` with the bridge call in the same sponsored `wallet_sendCalls` request.
 
+For ERC-20 routes like USDC:
+
+- The approval amount comes from the source token amount you asked Layerswap to bridge.
+- `depositAction.amount_in_base_units` is the native transaction `value` for the prepared bridge call.
+
 ## Prerequisites
 
 You will need:
@@ -87,18 +92,18 @@ if (!depositAction?.call_data) {
 
 ## 3. Read allowance and build the batch
 
-This Layerswap route uses a pull-based ERC-20 transfer, so the wallet needs allowance if the token has not already been approved.
+This Layerswap route uses a pull-based ERC-20 transfer, so the wallet needs allowance if the token has not already been approved. The approval amount comes from `preparedSwap.swap.requested_amount`. The deposit action's `amount_in_base_units` is the native `value` to send with the bridge call.
 
 ```ts
-import {encodeFunctionData, erc20Abi} from 'viem';
+import {encodeFunctionData, erc20Abi, parseUnits, toHex} from 'viem';
 
 const tokenAddress = preparedSwap.swap.source_token.contract as `0x${string}`;
 const spender = depositAction.to_address as `0x${string}`;
-
-const requiredAmount =
-  BigInt(depositAction.amount_in_base_units || '0') > 0n
-    ? BigInt(depositAction.amount_in_base_units)
-    : BigInt(depositAction.encoded_args?.at(-1) ?? '0');
+const requestedAmount = String(preparedSwap.swap.requested_amount);
+const requiredAmount = parseUnits(
+  requestedAmount,
+  preparedSwap.swap.source_token.decimals,
+);
 
 const allowance = await publicClient.readContract({
   address: tokenAddress,
@@ -106,6 +111,12 @@ const allowance = await publicClient.readContract({
   functionName: 'allowance',
   args: [walletAddress as `0x${string}`, spender],
 });
+
+const bridgeCall = {
+  to: depositAction.to_address,
+  data: depositAction.call_data,
+  value: toHex(BigInt(depositAction.amount_in_base_units || '0')),
+};
 
 const calls =
   allowance < requiredAmount
@@ -119,19 +130,9 @@ const calls =
           }),
           value: '0x0',
         },
-        {
-          to: depositAction.to_address,
-          data: depositAction.call_data,
-          value: '0x0',
-        },
+        bridgeCall,
       ]
-    : [
-        {
-          to: depositAction.to_address,
-          data: depositAction.call_data,
-          value: '0x0',
-        },
-      ];
+    : [bridgeCall];
 ```
 
 ## 4. Submit the sponsored transaction
