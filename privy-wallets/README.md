@@ -4,7 +4,7 @@ Bridge tokens through Layerswap from a Privy server wallet using Privy's native 
 
 The two important parts of this flow are:
 
-- Create the swap with `use_depository: true`.
+- Create the swap with `use_depository: true`, which is recommended when using Layerswap from a contract wallet or a server wallet.
 - If the wallet does not already have enough allowance, batch `approve(exactAmount)` with the bridge call in the same sponsored `wallet_sendCalls` request.
 
 For ERC-20 routes like USDC:
